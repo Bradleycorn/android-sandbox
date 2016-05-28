@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Sandbox</string>
+    <string name="empty_show_list">No Shows Found</string>
+    <string name="toolbar_browse_spinner_title">Browse %1$s</string>
+
+    <plurals name="show_count">
+        <item quantity="zero">no shows</item>
+        <item quantity="one">%1$s show</item>
+        <item quantity="other">%1$s shows</item>
+    </plurals>
+
+</resources>
+

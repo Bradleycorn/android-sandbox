@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sync-adapter xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentAuthority="net.bradball.android.sandbox"
+    android:accountType="net.bradball.android.sandbox.stubaccount"
+    android:userVisible="false"
+    android:allowParallelSyncs="false"
+    android:isAlwaysSyncable="true"
+    android:supportsUploading="false"/>
