@@ -35,14 +35,13 @@ public class MusicHandlerThread extends HandlerThread {
 
     private Handler mHandler;
     private Handler mResponseHandler;
-    private ConcurrentHashMap<MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>>, String> mRequestMap = new ConcurrentHashMap<>();
-
+    private ConcurrentHashMap<MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>>, String> mBrowserRequestsMap = new ConcurrentHashMap<>();
 
     private MediaLoadedCallback mMediaLoadedCallback;
 
     public interface MediaLoadedCallback {
         void onChildrenLoaded(MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, List<MediaBrowserCompat.MediaItem> list, String parentMediaId);
-        void onRecordingLoaded(Recording recording, String mediaId);
+        void onRecordingLoaded(Recording recording, String mediaId, int action);
     }
 
 
@@ -60,9 +59,9 @@ public class MusicHandlerThread extends HandlerThread {
     public void loadChildren(MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, String parentMediaID) {
 
         if (parentMediaID == null) {
-            mRequestMap.remove(result);
+            mBrowserRequestsMap.remove(result);
         } else {
-            mRequestMap.put(result, parentMediaID);
+            mBrowserRequestsMap.put(result, parentMediaID);
             mHandler.obtainMessage(MESSAGE_LOAD_CHILDREN, result).sendToTarget();
         }
     }
@@ -74,9 +73,9 @@ public class MusicHandlerThread extends HandlerThread {
         }
     }
 
-    public void loadRecording(String mediaId) {
+    public void loadRecording(String mediaId, int action) {
         if (mediaId != null) {
-            mHandler.obtainMessage(MESSAGE_LOAD_RECORDING, mediaId).sendToTarget();
+            mHandler.obtainMessage(MESSAGE_LOAD_RECORDING, action, 0, mediaId).sendToTarget();
         }
     }
 
@@ -85,6 +84,7 @@ public class MusicHandlerThread extends HandlerThread {
         mHandler.removeMessages(MESSAGE_CACHE_TRACKS);
         mHandler.removeMessages(MESSAGE_LOAD_CHILDREN);
         mHandler.removeMessages(MESSAGE_LOAD_RECORDING);
+        mHandler.removeCallbacksAndMessages(null);
     }
 
 
@@ -92,12 +92,12 @@ public class MusicHandlerThread extends HandlerThread {
         mResponseHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (result != null && !mRequestMap.get(result).equals(recordingIdentifier)) {
+                if (result != null && !mBrowserRequestsMap.get(result).equals(recordingIdentifier)) {
                     return;
                 }
 
                 if (result != null) {
-                    mRequestMap.remove(result);
+                    mBrowserRequestsMap.remove(result);
                 }
 
                 mMediaLoadedCallback.onChildrenLoaded(result, list, recordingIdentifier);
@@ -105,11 +105,11 @@ public class MusicHandlerThread extends HandlerThread {
         });
     }
 
-    private void returnRecording(final Recording recording, final String mediaId) {
+    private void returnRecording(final Recording recording, final String mediaId, final int action) {
         mResponseHandler.post(new Runnable() {
             @Override
             public void run() {
-                mMediaLoadedCallback.onRecordingLoaded(recording, mediaId);
+                mMediaLoadedCallback.onRecordingLoaded(recording, mediaId, action);
             }
         });
     }
@@ -128,7 +128,7 @@ public class MusicHandlerThread extends HandlerThread {
                         MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result;
 
                         result = (MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>>) msg.obj;
-                        mediaId = mRequestMap.get(result);
+                        mediaId = mBrowserRequestsMap.get(result);
 
                         music = mMusicLoader.getChildren(mediaId, mResources);
 
@@ -145,6 +145,8 @@ public class MusicHandlerThread extends HandlerThread {
                         break;
                     case MESSAGE_LOAD_RECORDING:
                         mediaId = (String) msg.obj;
+                        int action = msg.arg1;
+
                         Uri recordingUri;
                         RecordingUrisEnum mediaType = MediaHelper.getMediaIdType(mediaId);
 
@@ -156,7 +158,7 @@ public class MusicHandlerThread extends HandlerThread {
 
                         Recording recording = mMusicLoader.getRecordingWithTracks(recordingUri);
 
-                        returnRecording(recording, mediaId);
+                        returnRecording(recording, mediaId, action);
                 }
             }
         };

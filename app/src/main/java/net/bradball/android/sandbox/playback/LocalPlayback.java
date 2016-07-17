@@ -76,6 +76,25 @@ public class LocalPlayback implements
     }
 
 
+
+    public int getPlaybackState() {
+        return mPlayerState;
+    }
+
+    public boolean isPlaying() {
+        return (mPlayOnFocusGain || (mMediaPlayer != null && mMediaPlayer.isPlaying()));
+    }
+
+    //The local player is always connected. This will end up being an override for a method needed for Chromecast playback.
+    public boolean isConnected() {
+        return true;
+    }
+
+    public long getPlaybackPosition() {
+        return mCurrentPosition;
+    }
+
+
     @Override
     public void onAudioFocusChange(int focusChange) {
         if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || focusChange == AudioManager.AUDIOFOCUS_LOSS) {
@@ -178,15 +197,17 @@ public class LocalPlayback implements
     private void startPlayback() {
 
         if (mAudioFocus == AUDIO_FOCUS_NONE) {
+            //TODO: It's possible that the playbackstate at this point is "buffering" (if we attempted to play but didn't get audio focus). We should do something.
             //We don't have audio focus. Can't start playback.
+            mPlaybackListener.onError("Tried to start Playback without audio focus");
             return;
         }
 
         setPlayerVolume();
         registerAudioNoisyReceiver();
         if (mMediaPlayer != null && !mMediaPlayer.isPlaying()) {
-            mMediaPlayer.start();
             setPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+            mMediaPlayer.start();
         }
     }
 

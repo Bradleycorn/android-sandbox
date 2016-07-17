@@ -1,9 +1,11 @@
 package net.bradball.android.sandbox.model;
 
+import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.media.MediaMetadataCompat;
 
+import net.bradball.android.sandbox.R;
 import net.bradball.android.sandbox.provider.RecordingsContract;
 
 public class Track implements Comparable<Track> {

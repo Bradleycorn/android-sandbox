@@ -50,8 +50,20 @@ public class PlayQueue {
         return mQueue.get(mCurrentIndex);
     }
 
+    public MediaSessionCompat.QueueItem setCurrentItem(String mediaId) {
+        int newIndex = getQueueItemIndex(mediaId);
+        if (newIndex >= 0) {
+            mCurrentIndex = newIndex;
+            setCurrentIndex(newIndex);
+            return mQueue.get(mCurrentIndex);
+        }
+
+        return null;
+    }
+
+
     public MediaSessionCompat.QueueItem getNextItem() {
-        int nextIndex = mCurrentIndex++;
+        int nextIndex = mCurrentIndex+1;
         if (mQueue.size() > nextIndex) {
             return mQueue.get(nextIndex);
         }
@@ -82,6 +94,17 @@ public class PlayQueue {
         return mCurrentIndex;
     }
 
+    public boolean skip(int amount) {
+        int newIndex = Math.max(0, mCurrentIndex + amount);
+
+        if (mQueue != null && newIndex >= 0 && newIndex < mQueue.size()) {
+            setCurrentIndex(newIndex);
+            return true;
+        }
+
+        return false;
+    }
+
 
     private void setQueue(Recording recording, List<MediaSessionCompat.QueueItem> queue, String playMediaId) {
         mQueuedRecording = recording;
@@ -89,11 +112,19 @@ public class PlayQueue {
         mQueue.clear();
         mQueue.addAll(queue);
 
-        mCurrentIndex =  getQueueItemIndex(playMediaId);
+        setCurrentIndex(Math.max(0,getQueueItemIndex(playMediaId)));
         mQueueUpdateListener.onQueueUpdated(recording.getTitle(), queue);
     }
 
+    private void setCurrentIndex(int newIndex) {
+        mCurrentIndex = newIndex;
 
+        if (mQueueUpdateListener != null) {
+            String mediaId = mQueue.get(mCurrentIndex).getDescription().getMediaId();
+            Track currentTrack = mQueuedRecording.findTrackByMediaId(mediaId);
+            mQueueUpdateListener.onMetadataChanged(currentTrack.getMediaMetadata(mQueue.size()));
+        }
+    }
 
 
 
@@ -106,7 +137,7 @@ public class PlayQueue {
             index++;
         }
 
-        return 0;
+        return -1;
     }
 
 
