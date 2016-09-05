@@ -8,9 +8,10 @@ import android.util.Log;
 
 import net.bradball.android.sandbox.data.DatabaseSchema.RecordingsTable;
 import net.bradball.android.sandbox.data.DatabaseSchema.ShowsTable;
+import net.bradball.android.sandbox.util.LogHelper;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
-    private static final String TAG = "DatabaseHelper";
+    private static final String TAG = LogHelper.makeLogTag(DatabaseHelper.class);
     private static final String DATABASE_NAME = "recordings_database";
 
     private static final int INIT_VERSION = 100;
@@ -23,7 +24,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        Log.d(TAG, "CREATE DATABASE");
+        LogHelper.v(TAG, "CREATE DATABASE");
         db.execSQL("CREATE TABLE " + ShowsTable.NAME + "(" +
                 BaseColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 ShowsTable.COLUMNS.YEAR + " TEXT NOT NULL, " +

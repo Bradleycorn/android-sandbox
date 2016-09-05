@@ -4,6 +4,8 @@ import android.content.ContentProviderOperation;
 import android.util.Log;
 
 import net.bradball.android.sandbox.network.ArchiveAPI;
+import net.bradball.android.sandbox.util.LogHelper;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
@@ -16,7 +18,7 @@ import org.joda.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
 public abstract class JSONParser {
-    private static final String TAG = "JSONParser";
+    private static final String TAG = LogHelper.makeLogTag(JSONParser.class);
     protected JsonObject mJsonObject;
     protected JsonDeserializationContext mJsonDeserializationContext;
 
@@ -91,7 +93,7 @@ public abstract class JSONParser {
                 DateTimeFormatter fmt = DateTimeFormat.forPattern(ArchiveAPI.DATE_FORMAT);
                 dateValue = fmt.parseLocalDate(dateStr);
             } catch (IllegalArgumentException ex) {
-                Log.d(TAG, "Could not parse string (" + dateStr + ") into valid LocalDate object");
+                LogHelper.e(TAG, "Could not parse string (" + dateStr + ") into valid LocalDate object");
                 return null;
             }
         }

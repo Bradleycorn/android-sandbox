@@ -10,6 +10,8 @@ import net.bradball.android.sandbox.model.Recording;
 import net.bradball.android.sandbox.network.ArchiveAPI;
 import net.bradball.android.sandbox.provider.RecordingsContract;
 import net.bradball.android.sandbox.model.Show;
+import net.bradball.android.sandbox.util.LogHelper;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -25,7 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 public class RecordingParser extends JSONParser implements JsonDeserializer<Recording> {
-    private static final String TAG = "RecordingParser";
+    private static final String TAG = LogHelper.makeLogTag(RecordingParser.class);
     private LinkedHashMap<LocalDate, Show> mShows = new LinkedHashMap<LocalDate, Show>();
     private ContentResolver mContentResolver;
 

@@ -26,6 +26,7 @@ import net.bradball.android.sandbox.data.RecordingParser;
 import net.bradball.android.sandbox.data.jsonModel.RecordingsListJson;
 import net.bradball.android.sandbox.network.ArchiveAPI;
 import net.bradball.android.sandbox.provider.RecordingsContract;
+import net.bradball.android.sandbox.util.LogHelper;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -40,15 +41,13 @@ import java.util.Date;
  * SyncService.
  */
 public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
-    private static final String TAG = "ArchiveOrgSyncAdapter";
+    private static final String TAG = LogHelper.makeLogTag(ArchiveOrgSyncAdapter.class);
 
     private final ContentResolver mContentResolver;
     private final Context mContext;
 
     public ArchiveOrgSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
-
-        Log.d(TAG, "Sync Adapter created");
 
         mContext = context;
         mContentResolver = context.getContentResolver();
@@ -60,17 +59,6 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
         mContext = context;
         mContentResolver = context.getContentResolver();
     }
-
-    private void logRowCount(String msg) {
-        Cursor tempCursor = mContentResolver.query(RecordingsContract.Shows.CONTENT_URI, null, null, null, null);
-        if (tempCursor == null ) {
-            Log.d(TAG, "(" + msg + ") CURSOR WAS NULL");
-        } else {
-            Log.d(TAG, "(" + msg + ") ROW COUNT: " + tempCursor.getCount());
-            tempCursor.close();
-        }
-    }
-
 
     /**
      * onPerformSync handles the actual sync with the server. It mainly consists of a loop that
@@ -89,7 +77,7 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
      */
     @Override
     public void onPerformSync(Account account, Bundle bundle, String s, ContentProviderClient contentProviderClient, SyncResult syncResult) {
-        Log.d(TAG, "====== ONPERFORMSYNC CALLED ======");
+        LogHelper.i(TAG, "Syncing with Archive.org");
         //Pull and store the date of the last update.
         Date lastUpdate = SyncHelper.getLastUpdate(mContext);
 
@@ -98,6 +86,7 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
         String archiveCursor = null;
         String json;
         RecordingsListJson recordingsList;
+        int itemsLeft = 0;
 
 
         //The ArchiveAPI class has methods for actually getting data from the web,
@@ -109,7 +98,7 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
         //Finally, we're ready for action.
         //Start looping ....
         do {
-            Log.d(TAG, "Fetching Data from Network");
+            LogHelper.d(TAG, "Fetching Data from Network");
 
             //Fetch a page of results from the api
             json = archiveAPI.fetchShows(lastUpdate, archiveCursor);
@@ -118,11 +107,15 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
             recordingsList = gson.fromJson(json, RecordingsListJson.class);
             archiveCursor = recordingsList.cursor;
 
-            Log.d(TAG, "Got Network Data, passing to AsyncTask");
-            new RecordingsHandler().execute(recordingsList);
-        } while (!TextUtils.isEmpty(archiveCursor)); //keep looping until we've processed all pages
+            //The "total" returned from the API is how many total items
+            //there are from this request forward, INCLUDING the items in this request
+            //So the number of items we have left to fetch is the total minus
+            //the number of items in this request (the "count").
+            itemsLeft = recordingsList.total - recordingsList.count;
 
-        Log.d(TAG, "====== DONE WITH NETWORK ======");
+            new RecordingsHandler().execute(recordingsList);
+        } while (!TextUtils.isEmpty(archiveCursor) && itemsLeft > 0); //keep looping until we've processed all pages
+
 
         //Now that we're done, update the shared preference that stores the date of the last update
         SyncHelper.setLastUpdate(mContext, new Date());
@@ -141,13 +134,14 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
             recordingParser.getContentProviderInserts(inserts);
 
             try {
+                int rows = inserts.size();
                 mContentResolver.applyBatch(RecordingsContract.CONTENT_AUTHORITY, inserts);
-                Log.d(TAG, "Inserted a set of data");
+                LogHelper.d(TAG, "Inserted a set of data: ", rows, " rows");
             } catch (RemoteException ex) {
-                Log.e(TAG, "RemoteException while applying content provider operations.");
+                LogHelper.e(TAG, "RemoteException while applying content provider operations.");
                 //TODO: A notification that there was an error?
             } catch (OperationApplicationException ex) {
-                Log.e(TAG, "OperationApplicationException while applying content provider operations.");
+                LogHelper.e(TAG, "OperationApplicationException while applying content provider operations.");
                 //TODO: A notification that there was an error?
             }
 
@@ -156,12 +150,14 @@ public class ArchiveOrgSyncAdapter extends AbstractThreadedSyncAdapter {
 
         @Override
         protected void onPostExecute(RecordingsListJson json) {
-            mContentResolver.notifyChange(RecordingsContract.Shows.CONTENT_URI, null, false);
-            mContentResolver.notifyChange(RecordingsContract.Shows.SHOW_YEARS_URI, null, false);
-            mContentResolver.notifyChange(RecordingsContract.Recordings.CONTENT_URI, null, false);
+            LogHelper.d(TAG, "Sending database change notifications ... ");
 
-            if (TextUtils.isEmpty(json.cursor)) {
-                Log.d(TAG, "====== DONE WITH INSERTS ======");
+            //mContentResolver.notifyChange(RecordingsContract.Shows.CONTENT_URI, null, false);
+            mContentResolver.notifyChange(RecordingsContract.Shows.SHOW_YEARS_URI, null, false);
+            //mContentResolver.notifyChange(RecordingsContract.Recordings.CONTENT_URI, null, false);
+
+            if (TextUtils.isEmpty(json.cursor) || ( json.total - json.count < 1 )) {
+                LogHelper.i(TAG, "Archive.org sync complete");
             }
         }
     }

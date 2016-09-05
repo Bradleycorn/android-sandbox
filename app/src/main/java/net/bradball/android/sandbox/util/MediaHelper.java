@@ -68,7 +68,7 @@ public class MediaHelper {
     public static final String EXTRA_TRACK_METADATA = "track_metadata";
 
 
-    public static final String ROOT_ID = RecordingsContract.Shows.CONTENT_URI.toString();
+    public static final String ROOT_ID = RecordingsContract.Shows.SHOW_YEARS_URI.toString();
 
 
     /**

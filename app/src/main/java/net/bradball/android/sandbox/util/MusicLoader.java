@@ -19,6 +19,7 @@ package net.bradball.android.sandbox.util;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -32,6 +33,7 @@ import android.util.Log;
 import android.util.LruCache;
 
 import net.bradball.android.sandbox.R;
+import net.bradball.android.sandbox.data.DatabaseSchema;
 import net.bradball.android.sandbox.data.TrackParser;
 import net.bradball.android.sandbox.data.jsonModel.RecordingDetailsJson;
 import net.bradball.android.sandbox.model.Show;
@@ -56,12 +58,15 @@ import java.util.Map;
  */
 public class MusicLoader {
 
-    private static final String TAG = "MusicLoader";
+    private static final String TAG = LogHelper.makeLogTag(MusicLoader.class);
 
     private static final int CACHE_SIZE_MB = 5; //Cache Size in MB
     private static final LruCache<String, Recording> mRecordingCache;
 
     private final Context mContext;
+
+
+
 
     static {
         mRecordingCache = new LruCache<>(CACHE_SIZE_MB * 1024 * 1024);
@@ -84,9 +89,11 @@ public class MusicLoader {
         cursor = mContext.getContentResolver().query(mediaUri, projection, null, null, orderBy);
         if (cursor != null) {
             try {
-                do {
-                    years.put(cursor.getString(0), cursor.getInt(1));
-                } while (cursor.moveToNext());
+                if (cursor.getCount() > 0) {
+                    while (cursor.moveToNext()) {
+                        years.put(cursor.getString(0), cursor.getInt(1));
+                    }
+                }
             } finally {
                     cursor.close();
             }
@@ -101,9 +108,10 @@ public class MusicLoader {
         String selection = RecordingsContract.Shows.YEAR + " = ?";
         String[] selectionArgs = {RecordingsContract.Shows.getShowDate(mediaUri)};
 
-        cursor = mContext.getContentResolver().query(mediaUri, RecordingsContract.Shows.PROJECTION, selection, selectionArgs, RecordingsContract.Shows.DATE + " desc");
+        cursor = mContext.getContentResolver().query(mediaUri, RecordingsContract.Shows.PROJECTION, selection, selectionArgs, DatabaseSchema.ShowsTable.NAME + "." + RecordingsContract.Shows.DATE + " desc");
         if (cursor != null) {
             try {
+                cursor.moveToFirst();
                 do {
                     shows.add(Show.getFromCursor(cursor));
                 } while (cursor.moveToNext());
@@ -121,14 +129,14 @@ public class MusicLoader {
         Cursor cursor = null;
         Recording recording = null;
 
-        cursor =  mContext.getContentResolver().query(mediaUri, RecordingsContract.Recordings.PROJECTION, null, null, RecordingsContract.Recordings.DATE + " desc");
+        cursor =  mContext.getContentResolver().query(recordingsUri, RecordingsContract.Recordings.PROJECTION, null, null, RecordingsContract.Recordings.DATE + " desc");
         if (cursor != null) {
             try {
-                do {
+                while (cursor.moveToNext()) {
                     recording = Recording.getFromCursor(cursor);
                     recordings.add(recording);
                     addToCache(recording);
-                } while (cursor.moveToNext());
+                }
             } finally {
                 cursor.close();
             }
@@ -198,7 +206,7 @@ public class MusicLoader {
             if (recording != null) {
                 return recording.getTracks();
             } else {
-                Log.e(TAG, "Could not find a recording in the cache for " + trackMediaID);
+                LogHelper.e(TAG, "Could not find a recording in the cache for " + trackMediaID);
             }
         }
 
@@ -307,5 +315,9 @@ public class MusicLoader {
         }
 
         mRecordingCache.put(recording.getIdentifier(), recording);
+    }
+
+    public void clearCache() {
+        mRecordingCache.evictAll();
     }
 }

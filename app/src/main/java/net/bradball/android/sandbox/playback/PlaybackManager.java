@@ -1,74 +1,70 @@
 package net.bradball.android.sandbox.playback;
 
-import android.os.Bundle;
 import android.os.SystemClock;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.text.TextUtils;
 import android.util.Log;
 
 import net.bradball.android.sandbox.model.Recording;
+import net.bradball.android.sandbox.util.LogHelper;
+
+import java.util.List;
+import java.util.Queue;
 
 /**
- *               |  Created   |   Playing   |    Paused   |   Stopped   | Destroyed |
- * --------------|------------|-------------|-------------|-------------|-----------|
- * MediaPlayer   |    new     |   prepare   |    pause    |    stop     |  release  |
- *               |            |    play     |             |             |           |
- *               |            |             |             |             |
- * --------------|------------|-------------|-------------|-------------|-----------|
- * Audio Focus   |            |request focus|             | clear focus |           |
- * --------------|------------|-------------|-------------|-------------|-----------|
- * Noisy         |            |  register   | unregister  |             |           |
- * --------------|------------|-------------|-------------|-------------|-----------|
- * Media Session |    new     |  setActive  |             |set InActive |  release  |
- *               | set flags  |set metadata |             |             |           |
- *               |set callback|  set state  | set state   |             |           |
- * --------------|------------|-------------|-------------|-------------|-----------|
- * Notification  |            | start FG    |stopFG(false)|stopFG(true) |           |
- *---------------|------------|-------------|-------------|-------------|-----------|
- * Service       |            | load Tracks |             |             |           |
- *               |            | delay stop  |             | delay stop  |           |
- *               |            |   clear     |             |  start      |           |
- *---------------|------------|-------------|-------------|-------------|-----------|
- */public class PlaybackManager extends MediaSessionCompat.Callback implements Playback.PlaybackListener {
-    private static final String TAG = "PlaybackManager";
+ * Created by bradb on 7/17/16.
+ */
+public class PlaybackManager implements
+        PlayQueue.QueueUpdateListener,
+        Playback.PlaybackListener {
 
+    private static final String TAG = LogHelper.makeLogTag(PlaybackManager.class);
 
     private Playback mPlayback;
-    private PlayQueue mPlayQueue;
-    private final ServiceCallback mServiceCallback;
+    private PlayQueue mQueue;
+    private PlaybackEventsListener mListener;
 
-    //We will store the most recent mediaId that has been requested for playback.
-    //This is needed in case multiple requests come in "at the same time"
-    //for different media (last one wins).
-    private String mCurrentPlaybackRequest;
 
-    public PlaybackManager(Playback playback, PlayQueue queue, ServiceCallback serviceCallback) {
+    private String mLastError;
+    private MediaMetadataCompat mCurrentItemMetadata;
+
+    public interface PlaybackEventsListener {
+        void onQueueCreated(String title, List<MediaSessionCompat.QueueItem> queue);
+        void onPlaybackStateChanged(int newState);
+        void onMetadataChanged(MediaMetadataCompat metadata);
+    }
+
+    public PlaybackManager(Playback playback, PlayQueue queue) {
         mPlayback = playback;
         mPlayback.setPlaybackListener(this);
-        mPlayQueue = queue;
-        mServiceCallback = serviceCallback;
+        mQueue = queue;
+        mQueue.setQueueUpdateListener(this);
     }
 
+    public void setPlaybackEventsListener(PlaybackEventsListener listener) {
+        mListener = listener;
+    }
 
-    public void handlePlayRequest(Recording recording, String mediaId) {
-        //Make sure the media to be played is the most recent to be requested.
-        if (!TextUtils.equals(mediaId,mCurrentPlaybackRequest)) {
-            return;
+    public void startPlayback(Recording recording, String mediaId) {
+        mQueue.createQueue(recording, mediaId);
+        mListener.onQueueCreated(mQueue.getTitle(), mQueue.getItems());
+        MediaSessionCompat.QueueItem currentItem = mQueue.getCurrentItem();
+        if (currentItem != null) {
+            mPlayback.play(currentItem);
         }
-
-        mPlayQueue.createQueue(recording, mediaId);
-        playMusic();
     }
 
-
-
-    public Playback getPlayback() {
-        return mPlayback;
+    public boolean canPlayMedia(String mediaId) {
+        return mQueue.containsMediaId(mediaId);
     }
 
-    public void updatePlaybackState(String error) {
-        Log.d(TAG, "updatePlaybackState, playback state=" + mPlayback.getPlaybackState());
+    public boolean isPlayingMedia() {
+        return (mPlayback != null && mPlayback.isPlaying());
+    }
+
+    public PlaybackStateCompat getCurrentState() {
+        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder();
         long position = PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN;
         int state = PlaybackStateCompat.STATE_NONE;
 
@@ -77,33 +73,28 @@ import net.bradball.android.sandbox.model.Recording;
             state = mPlayback.getPlaybackState();
         }
 
+        // If there is an error message, send it to the playback state:
+        if (state == PlaybackStateCompat.STATE_ERROR) {
+            // Error states are really only supposed to be used for errors that cause playback to
+            // stop unexpectedly and persist until the user takes action to fix it.
+            stateBuilder.setErrorMessage(mLastError);
+        }
 
         //noinspection ResourceType
-        PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder().setActions(getAvailableActions());
+        stateBuilder.setActions(getAvailableActions());
 
         //setCustomAction(stateBuilder);
 
-        // If there is an error message, send it to the playback state:
-        if (error != null) {
-            // Error states are really only supposed to be used for errors that cause playback to
-            // stop unexpectedly and persist until the user takes action to fix it.
-            stateBuilder.setErrorMessage(error);
-            state = PlaybackStateCompat.STATE_ERROR;
-        }
         //noinspection ResourceType
         stateBuilder.setState(state, position, 1.0f, SystemClock.elapsedRealtime());
 
         // Set the activeQueueItemId if the current index is valid.
-        MediaSessionCompat.QueueItem currentQueueItem = mPlayQueue.getCurrentItem();
+        MediaSessionCompat.QueueItem currentQueueItem = mQueue.getCurrentItem();
         if (currentQueueItem != null) {
             stateBuilder.setActiveQueueItemId(currentQueueItem.getQueueId());
         }
 
-        mServiceCallback.onPlaybackStateChanged(stateBuilder.build());
-
-        if (state == PlaybackStateCompat.STATE_PLAYING || state == PlaybackStateCompat.STATE_PAUSED) {
-            mServiceCallback.onNotificationRequired();
-        }
+        return stateBuilder.build();
     }
 
     private long getAvailableActions() {
@@ -119,111 +110,39 @@ import net.bradball.android.sandbox.model.Recording;
         return actions;
     }
 
-    private void playMusic() {
-        MediaSessionCompat.QueueItem currentItem = mPlayQueue.getCurrentItem();
-        if (currentItem != null) {
-            mServiceCallback.onPlaybackStarting();
-            mPlayback.play(currentItem);
-        }
-    }
-
-    // MEDIASESSION CALLBACK METHODS
-    // =============================
-
-
-    @Override
-    public void onPlay() {
-        playMusic();
-    }
-
-    @Override
-    public void onPlayFromMediaId(String mediaId, Bundle extras) {
-        //We have a request to play some media (either a track or recording).
-        //First, we need to send the info back to the MusicService so
-        //it can load the recordings and tracks we need (presumably from in memory cache).
-        //When it's done, it'll call our createQueue() method to create
-        //a queue, and start playback
-        mCurrentPlaybackRequest = mediaId;
-        if (mPlayQueue.isMediaQueued(mediaId)) {
-            //This media is already in the play queue, we just need to play it.
-            //TODO: Play the right media.
-        } else {
-            mServiceCallback.onPlayMediaRequest(mediaId, extras);
-        }
-    }
-
-    @Override
-    public void onPlayFromSearch(String query, Bundle extras) {
-        super.onPlayFromSearch(query, extras);
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    public void onSeekTo(long pos) {
-        mPlayback.seekTo((int) pos);
-    }
-
-    @Override
-    public void onSkipToNext() {
-
-        if (mPlayQueue.skip(1)) {
-            playMusic();
-        }
-    }
-
-    @Override
-    public void onSkipToPrevious() {
-        super.onSkipToPrevious();
-    }
-
-    @Override
-    public void onSkipToQueueItem(long id) {
-        super.onSkipToQueueItem(id);
+    private boolean isListenerRegistered() {
+        return (mListener != null);
     }
 
 
-
-    @Override
-    public void onCustomAction(String action, Bundle extras) {
-        super.onCustomAction(action, extras);
-    }
-
-
-
-    // PLAYBACK LISTENER IMPLEMENTATION
-    // ================================
+    // PLAYBACK UPDATE LISTENER IMPLEMENTATION
+    // =======================================
 
     @Override
     public void onLostAudioFocus() {
-        //TODO: Kill the whole service
+
     }
 
     @Override
-    public void onPlaybackComplete(boolean nextTrackBuffering) {
-        //TODO: UpdatePlayQueue, setting Next Track as current if necessary.
-        if (!nextTrackBuffering) {
-            mPlayQueue.skip(1);
-            playMusic();
-        }
-    }
+    public void onPlaybackComplete(boolean nextSongQueued) {
 
-    @Override
-    public void onNextStarting(String mediaId) {
-        mPlayQueue.setCurrentItem(mediaId);
     }
 
     @Override
     public void onPlaybackStateChanged(int playbackState) {
-        updatePlaybackState(null);
+        if (isListenerRegistered()) {
+            mListener.onPlaybackStateChanged(playbackState);
+        }
     }
 
     @Override
     public void onError(String error) {
-        updatePlaybackState(error);
+        mLastError = error;
+    }
+
+    @Override
+    public void onNextStarting(String mediaId) {
+
     }
 
     @Override
@@ -231,16 +150,16 @@ import net.bradball.android.sandbox.model.Recording;
 
     }
 
-    public interface ServiceCallback {
-        void onPlaybackStarting();
 
-        void onPlaybackStopped();
+    //PLAY QUEUE UPDATE LISTENER IMPLEMENTATION
+    //========================================
 
-        void onPlaybackStateChanged(PlaybackStateCompat newState);
-
-        void onNotificationRequired();
-
-        void onPlayMediaRequest(String mediaId, Bundle extras);
+    @Override
+    public void onCurrentItemChanged(MediaSessionCompat.QueueItem item, MediaMetadataCompat metadata) {
+        mCurrentItemMetadata = metadata;
+        if (isListenerRegistered()) {
+            mListener.onMetadataChanged(mCurrentItemMetadata);
+        }
     }
 
 }

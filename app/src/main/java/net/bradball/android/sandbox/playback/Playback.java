@@ -14,6 +14,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import net.bradball.android.sandbox.R;
+import net.bradball.android.sandbox.util.LogHelper;
 
 import java.io.IOException;
 
@@ -28,7 +29,7 @@ public class Playback implements
         MediaPlayer.OnPreparedListener,
         MediaPlayer.OnSeekCompleteListener {
 
-    private static final String TAG = "Playback";
+    private static final String TAG = LogHelper.makeLogTag(Playback.class);
 
     //Volume & Audio Focus Settings
     private static final float VOLUME_NORMAL = 1.0f;
@@ -314,7 +315,6 @@ public class Playback implements
      * Try to get the system audio focus.
      */
     private void getAudioFocus() {
-        Log.d(TAG, "tryToGetAudioFocus");
         if (mAudioFocus != AUDIO_FOCUSED) {
             int result = mAudioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
             if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
@@ -327,7 +327,6 @@ public class Playback implements
      * Give up the audio focus.
      */
     private void giveUpAudioFocus() {
-        Log.d(TAG, "giveUpAudioFocus");
         if (mAudioFocus == AUDIO_FOCUSED || mAudioFocus == AUDIO_FOCUS_DUCK) {
             if (mAudioManager.abandonAudioFocus(this) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 mAudioFocus = AUDIO_FOCUS_NONE;
@@ -337,7 +336,6 @@ public class Playback implements
 
 
     private void resetPlayer(MediaPlayer mp) {
-        Log.d(TAG, "reset MediaPlayer - Need to create it: " + (mp==null));
         if (mp == null) {
             mp = new MediaPlayer();
 
@@ -514,8 +512,6 @@ public class Playback implements
 
     @Override
     public void onSeekComplete(MediaPlayer mp) {
-        Log.d(TAG, "onSeekComplete from MediaPlayer:" + mp.getCurrentPosition());
-
         if (mp == mCurrentMediaPlayer) {
             mCurrentPosition = mp.getCurrentPosition();
             if (mPlaybackState == PlaybackStateCompat.STATE_BUFFERING) {
@@ -562,7 +558,7 @@ public class Playback implements
 
     @Override
     public boolean onError(MediaPlayer mp, int what, int extra) {
-        Log.e(TAG, "MediaPlayer Error: what="+what+", extra="+extra);
+        LogHelper.e(TAG, "MediaPlayer Error: what="+what+", extra="+extra);
 
         if (mp == mNextMediaPlayer) {
             stopNextMediaPlayer();
@@ -621,7 +617,6 @@ public class Playback implements
         @Override
         public void onReceive(Context context, Intent intent) {
             if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) {
-                Log.d(TAG, "Headphones disconnected.");
 
                 //Not sure why UAMP completely restarts the service, with a "pause"
                 //command in the intent??
@@ -658,7 +653,7 @@ public class Playback implements
     }
 
 
-        /*
+    /*
      *  PLAYBACK LISTENER INTERFACE
      *
      *  We define an interface, PlaybackListener, that contains several media player event related

@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.text.TextUtils;
 import android.util.Log;
 
+import net.bradball.android.sandbox.util.LogHelper;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,7 +21,7 @@ import java.util.Map;
  * thread safe.
  */
 public class SelectionBuilder {
-    private static final String TAG = "SelectionBuilder";
+    private static final String TAG = LogHelper.makeLogTag(SelectionBuilder.class);
 
     private String mTable = null;
     private Map<String, String> mProjectionMap = new HashMap<>();
@@ -164,8 +166,7 @@ public class SelectionBuilder {
     public Cursor query(SQLiteDatabase db, boolean distinct, String[] columns, String orderBy,
                         String limit) {
         assertTable();
-        Log.v(TAG, "query(columns=" + Arrays.toString(columns)
-                + ", orderBy=" + orderBy + ") " + this);
+        LogHelper.v(TAG, "query(table=", mTable, ", columns=",Arrays.toString(columns),", orderBy=", orderBy, ", where=", getSelection(), ", args=", Arrays.toString(getSelectionArgs()), ") ", this);
         if (columns != null) mapColumns(columns);
         return db.query(distinct, mTable, columns, getSelection(), getSelectionArgs(), mGroupBy,
                 mHaving, orderBy, limit);
@@ -176,7 +177,7 @@ public class SelectionBuilder {
      */
     public int update(SQLiteDatabase db, ContentValues values) {
         assertTable();
-        Log.v(TAG, "update() " + this);
+        LogHelper.v(TAG, "update(", values, ") " + this);
         return db.update(mTable, values, getSelection(), getSelectionArgs());
     }
 
@@ -185,7 +186,7 @@ public class SelectionBuilder {
      */
     public int delete(SQLiteDatabase db) {
         assertTable();
-        Log.v(TAG, "delete() " + this);
+        LogHelper.v(TAG, "delete() " + this);
         return db.delete(mTable, getSelection(), getSelectionArgs());
     }
 }

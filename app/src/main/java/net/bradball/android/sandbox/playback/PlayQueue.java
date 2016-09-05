@@ -1,13 +1,11 @@
 package net.bradball.android.sandbox.playback;
 
-import android.os.Bundle;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 
 import net.bradball.android.sandbox.model.Recording;
 import net.bradball.android.sandbox.model.Track;
 import net.bradball.android.sandbox.provider.RecordingsContract;
-import net.bradball.android.sandbox.util.MusicLoader;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,9 +23,12 @@ public class PlayQueue {
     private QueueUpdateListener mQueueUpdateListener;
 
 
-    public PlayQueue(QueueUpdateListener listener) {
+    public PlayQueue() {
         mQueue = Collections.synchronizedList(new ArrayList<MediaSessionCompat.QueueItem>());
         mCurrentIndex = 0;
+    }
+
+    public void setQueueUpdateListener(QueueUpdateListener listener) {
         mQueueUpdateListener = listener;
     }
 
@@ -46,6 +47,12 @@ public class PlayQueue {
         setQueue(recording, queue, playMediaId);
     }
 
+    public MediaMetadataCompat getCurrentMetaData() {
+        String mediaId = mQueue.get(mCurrentIndex).getDescription().getMediaId();
+        Track currentTrack = mQueuedRecording.findTrackByMediaId(mediaId);
+        return currentTrack.getMediaMetadata(mQueue.size());
+    }
+
     public MediaSessionCompat.QueueItem getCurrentItem() {
         return mQueue.get(mCurrentIndex);
     }
@@ -61,6 +68,18 @@ public class PlayQueue {
         return null;
     }
 
+    public String getTitle() {
+        if (mQueuedRecording != null) {
+            return mQueuedRecording.getTitle();
+        }
+
+        return null;
+    }
+
+    public List<MediaSessionCompat.QueueItem> getItems() {
+        return mQueue;
+    }
+
 
     public MediaSessionCompat.QueueItem getNextItem() {
         int nextIndex = mCurrentIndex+1;
@@ -74,7 +93,7 @@ public class PlayQueue {
         return mQueuedRecording;
     }
 
-    public boolean isMediaQueued(String mediaId) {
+    public boolean containsMediaId(String mediaId) {
         //Does the mediaId match the uri of the current recording?
         if (mQueuedRecording!= null && RecordingsContract.Recordings.buildRecordingUri(mQueuedRecording.getIdentifier()).toString() == mediaId) {
             return true;
@@ -113,16 +132,13 @@ public class PlayQueue {
         mQueue.addAll(queue);
 
         setCurrentIndex(Math.max(0,getQueueItemIndex(playMediaId)));
-        mQueueUpdateListener.onQueueUpdated(recording.getTitle(), queue);
     }
 
     private void setCurrentIndex(int newIndex) {
         mCurrentIndex = newIndex;
 
         if (mQueueUpdateListener != null) {
-            String mediaId = mQueue.get(mCurrentIndex).getDescription().getMediaId();
-            Track currentTrack = mQueuedRecording.findTrackByMediaId(mediaId);
-            mQueueUpdateListener.onMetadataChanged(currentTrack.getMediaMetadata(mQueue.size()));
+            mQueueUpdateListener.onCurrentItemChanged(mQueue.get(newIndex), getCurrentMetaData());
         }
     }
 
@@ -142,10 +158,7 @@ public class PlayQueue {
 
 
     public interface QueueUpdateListener {
-        void onMetadataChanged(MediaMetadataCompat metadata);
-        void onMetadataRetrieveError();
-        void onCurrentQueueIndexUpdated(int index);
-        void onQueueUpdated(String title, List<MediaSessionCompat.QueueItem> queue);
+        void onCurrentItemChanged(MediaSessionCompat.QueueItem item, MediaMetadataCompat metadata);
     }
 
 }

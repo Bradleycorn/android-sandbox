@@ -3,6 +3,7 @@ package net.bradball.android.sandbox.service;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -13,9 +14,11 @@ import android.support.v4.media.MediaBrowserServiceCompat;
 import net.bradball.android.sandbox.model.Recording;
 import net.bradball.android.sandbox.provider.RecordingUrisEnum;
 import net.bradball.android.sandbox.provider.RecordingsContract;
+import net.bradball.android.sandbox.util.LogHelper;
 import net.bradball.android.sandbox.util.MediaHelper;
 import net.bradball.android.sandbox.util.MusicLoader;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,14 +27,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MusicHandlerThread extends HandlerThread {
 
-    private static final String TAG = "MusicHandlerThread";
+    private static final String TAG = LogHelper.makeLogTag(MusicHandlerThread.class);
 
     private static final int MESSAGE_CACHE_TRACKS = 2;
     private static final int MESSAGE_LOAD_CHILDREN = 3;
     private static final int MESSAGE_LOAD_RECORDING = 4;
+    private static final int MESSAGE_CLEAR_CACHE = 5;
 
+    private final Context mContext;
     private final MusicLoader mMusicLoader;
     private final Resources mResources;
+    private final MusicContentObserver mMusicContentObserver;
+    private final ArrayList<String> mObservedMediaIds;
 
     private Handler mHandler;
     private Handler mResponseHandler;
@@ -42,14 +49,18 @@ public class MusicHandlerThread extends HandlerThread {
     public interface MediaLoadedCallback {
         void onChildrenLoaded(MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, List<MediaBrowserCompat.MediaItem> list, String parentMediaId);
         void onRecordingLoaded(Recording recording, String mediaId, int action);
+        void onChildrenChanged(Uri parentMediaUri);
     }
 
 
     public MusicHandlerThread(Context context, Handler responseHandler) {
         super(TAG);
-        mMusicLoader = new MusicLoader(context.getApplicationContext());
+        mContext = context.getApplicationContext();
+        mMusicLoader = new MusicLoader(mContext);
+        mMusicContentObserver = new MusicContentObserver(mHandler);
         mResponseHandler = responseHandler;
         mResources = context.getResources();
+        mObservedMediaIds = new ArrayList<>();
     }
 
     public void setMediaLoadedCallback(MediaLoadedCallback mediaLoadedCallback) {
@@ -85,14 +96,15 @@ public class MusicHandlerThread extends HandlerThread {
         mHandler.removeMessages(MESSAGE_LOAD_CHILDREN);
         mHandler.removeMessages(MESSAGE_LOAD_RECORDING);
         mHandler.removeCallbacksAndMessages(null);
+        mContext.getContentResolver().unregisterContentObserver(mMusicContentObserver);
     }
 
 
-    private void returnChildren(final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, final String recordingIdentifier, final List<MediaBrowserCompat.MediaItem> list) {
+    private void returnChildren(final MediaBrowserServiceCompat.Result<List<MediaBrowserCompat.MediaItem>> result, final String parentMediaId, final List<MediaBrowserCompat.MediaItem> list) {
         mResponseHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (result != null && !mBrowserRequestsMap.get(result).equals(recordingIdentifier)) {
+                if (result != null && !mBrowserRequestsMap.get(result).equals(parentMediaId)) {
                     return;
                 }
 
@@ -100,9 +112,18 @@ public class MusicHandlerThread extends HandlerThread {
                     mBrowserRequestsMap.remove(result);
                 }
 
-                mMediaLoadedCallback.onChildrenLoaded(result, list, recordingIdentifier);
+                mMediaLoadedCallback.onChildrenLoaded(result, list, parentMediaId);
             }
         });
+        setupObserver(parentMediaId);
+    }
+
+    private void setupObserver(String parentMediaId) {
+        if (!mObservedMediaIds.contains(parentMediaId)) {
+            LogHelper.d(TAG, "Registering Content Observer for URI: ", parentMediaId);
+            mContext.getContentResolver().registerContentObserver(Uri.parse(parentMediaId), true, mMusicContentObserver);
+            mObservedMediaIds.add(parentMediaId);
+        }
     }
 
     private void returnRecording(final Recording recording, final String mediaId, final int action) {
@@ -143,6 +164,10 @@ public class MusicHandlerThread extends HandlerThread {
                         mMusicLoader.getChildren(mediaId, mResources);
 
                         break;
+                    case MESSAGE_CLEAR_CACHE:
+                        mMusicLoader.clearCache();
+                        break;
+
                     case MESSAGE_LOAD_RECORDING:
                         mediaId = (String) msg.obj;
                         int action = msg.arg1;
@@ -165,7 +190,18 @@ public class MusicHandlerThread extends HandlerThread {
     }
 
 
+    private class MusicContentObserver extends ContentObserver {
+        public MusicContentObserver(Handler handler) {
+            super(handler);
+        }
 
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            super.onChange(selfChange, uri);
+            LogHelper.d(TAG, "Got a notification that data changed for Uri: ", uri.toString());
+            mMediaLoadedCallback.onChildrenChanged(uri);
+        }
+    }
 
 
 

@@ -26,7 +26,7 @@ import java.util.List;
  */
 public class RecordingsContract {
 
-    public static final String CONTENT_AUTHORITY = "com.example.android.uamp";
+    public static final String CONTENT_AUTHORITY = "net.bradball.android.sandbox";
     public static final String TRACK_AUTHORITY = "archive.org";
 
     public static final Uri BASE_CONTENT_URI = Uri.parse("content://" + CONTENT_AUTHORITY);
@@ -36,7 +36,7 @@ public class RecordingsContract {
     public static final String PATH_SHOWS_BY_DATE = "by_date";
     public static final String PATH_TRACK_DOWNLOAD = "download";
 
-    public static final String APP_CONTENT_TYPE_NAME = "/vnd.com.example.android.uamp.";
+    public static final String APP_CONTENT_TYPE_NAME = "/vnd.com.net.bradball.android.sandbox.";
     public static final String CONTENT_TYPE_ITEM_BASE = ContentResolver.CURSOR_ITEM_BASE_TYPE + APP_CONTENT_TYPE_NAME;
     public static final String CONTENT_TYPE_DIR_BASE = ContentResolver.CURSOR_DIR_BASE_TYPE + APP_CONTENT_TYPE_NAME;
 
@@ -145,7 +145,7 @@ public class RecordingsContract {
      */
     public static class Shows implements ShowColumns, BaseColumns {
         public static final Uri CONTENT_URI = BASE_CONTENT_URI.buildUpon().appendPath(PATH_SHOWS).build();
-        public static final Uri SHOW_YEARS_URI = CONTENT_URI.buildUpon().appendPath(PATH_SHOWS_BY_DATE).build();
+        public static final Uri SHOW_YEARS_URI = BASE_CONTENT_URI.buildUpon().appendPath(PATH_SHOWS_BY_DATE).build();
 
         public static final String CONTENT_TYPE_ID = "show";
 

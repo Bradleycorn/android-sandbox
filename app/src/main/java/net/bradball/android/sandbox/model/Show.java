@@ -4,6 +4,7 @@ import android.database.Cursor;
 import android.util.Log;
 
 import net.bradball.android.sandbox.provider.RecordingsContract;
+import net.bradball.android.sandbox.util.LogHelper;
 
 import org.joda.time.LocalDate;
 import org.joda.time.format.DateTimeFormat;
@@ -13,7 +14,7 @@ import java.util.ArrayList;
 
 public class Show {
 
-    private static final String TAG = "Show";
+    private static final String TAG = LogHelper.makeLogTag(Show.class);
     private static final String DATE_DISPLAY_FORMAT = "MM-dd-yyyy";
 
     private long mID;

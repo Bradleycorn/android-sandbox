@@ -10,6 +10,7 @@ import android.util.Log;
 
 import net.bradball.android.sandbox.provider.RecordingsContract;
 import net.bradball.android.sandbox.service.StubAuthenticatorService;
+import net.bradball.android.sandbox.util.LogHelper;
 
 import java.util.Date;
 
@@ -17,7 +18,7 @@ import java.util.Date;
  * Created by bradb on 1/12/16.
  */
 public class SyncHelper {
-    private static final String TAG = "SyncHelper";
+    private static final String TAG = LogHelper.makeLogTag(SyncHelper.class);
 
     /**
      * Set the frequency at which the Sync Adapter should run a sync.
@@ -40,7 +41,7 @@ public class SyncHelper {
      * It's important that the value here match exactly the accountType attribute
      * that is set in both the syncadapter.xml and authenticator.xml files.
      */
-    public static final String ACCOUNT_TYPE = "com.example.android.uamp.stubaccount";
+    public static final String ACCOUNT_TYPE = "net.bradball.android.sandbox.stubaccount";
 
     /**
      * Define a key for the shared preference that tracks if initial data has been loaded.
@@ -70,7 +71,6 @@ public class SyncHelper {
         AccountManager acctManager = (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
         Date lastUpdate = getLastUpdate(context);
 
-        Log.d(TAG, "Creating Sync Account");
 
         //addAccountExplicitly() will itself trigger a Sync on our Sync Adapter
         //if a new account is created. In that case we can just finish
@@ -80,8 +80,6 @@ public class SyncHelper {
             //In the following calls to the ContentResolver, the CONTENT_AUTHORITY will
             //be used by the system to figure out which Sync Adapter to use, and thus
             //will use our ArchiveOrgSyncAdapter
-
-            Log.d(TAG, "Sync Account Created, which should trigger a sync");
 
             //Tell android that this account is syncable.
             ContentResolver.setIsSyncable(account, CONTENT_AUTHORITY, 1);
@@ -96,7 +94,6 @@ public class SyncHelper {
             return;
         }
 
-        Log.d(TAG, "Sync account not created, trying to register a manual sync");
         //If we get here then a new account has not been created.
         //However, if the user has deleted app data, it's possible that the
         //the database/sharedPrefs have been cleared, so we'll check that

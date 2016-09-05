@@ -25,6 +25,7 @@ import net.bradball.android.sandbox.data.DatabaseSchema;
 import net.bradball.android.sandbox.model.Show;
 import net.bradball.android.sandbox.provider.RecordingsContract;
 import net.bradball.android.sandbox.sync.SyncHelper;
+import net.bradball.android.sandbox.util.LogHelper;
 
 
 import org.joda.time.LocalDate;
@@ -33,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SandboxFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>{
-    private static final String TAG = "SanboxFragment";
+    private static final String TAG = LogHelper.makeLogTag(SandboxFragment.class);
     private static final int LOADER_ID = 0;
     private static final String[] SHOWS_PROJECTION = {
             RecordingsContract.Shows._ID,
@@ -70,14 +71,13 @@ public class SandboxFragment extends Fragment implements LoaderManager.LoaderCal
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
         Uri loaderUri = RecordingsContract.Shows.buildShowsByDateUri(args.getString("year"));
 
-        return new CursorLoader(getActivity(), loaderUri, RecordingsContract.Shows.PROJECTION, null, null, RecordingsContract.Shows.DATE + " desc");
+        return new CursorLoader(getActivity(), loaderUri, RecordingsContract.Shows.PROJECTION, null, null, DatabaseSchema.ShowsTable.NAME + "." + RecordingsContract.Shows.DATE + " desc");
     }
 
 
 
     @Override
     public void onLoadFinished(Loader loader, Cursor c) {
-        Log.d(TAG, "====== LOADER - LOAD FINISHED ======");
         //c.setNotificationUri(getActivity().getContentResolver(), RecordingsContract.Shows.BY_DATE_URI);
         if (mShowsAdapter == null) {
             mShowsAdapter = new ShowAdapter();
@@ -89,7 +89,6 @@ public class SandboxFragment extends Fragment implements LoaderManager.LoaderCal
 
     @Override
     public void onLoaderReset(Loader loader) {
-        Log.d(TAG, "=== LOADER RESET ===");
         mShowsAdapter.swapCursor(null);
     }
 

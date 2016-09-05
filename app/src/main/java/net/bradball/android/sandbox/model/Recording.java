@@ -10,11 +10,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import net.bradball.android.sandbox.provider.RecordingsContract;
+import net.bradball.android.sandbox.util.LogHelper;
+
 /**
  * Created by bradb on 12/29/15.
  */
 public class Recording {
-    private static final String TAG = "Recording";
+    private static final String TAG = LogHelper.makeLogTag(Recording.class);
     private static final String DATE_DISPLAY_FORMAT = "MM-dd-yyyy";
 
     private long mID;
@@ -232,7 +234,7 @@ public class Recording {
 
     public Track findTrackByMediaId(String mediaId) {
         for (Track track: mTracks) {
-            if (mediaId.equals(track.getMediaMetadata().getDescription().getMediaId())) {
+            if (mediaId.equals(track.getMediaMetadata(mTracks.size()).getDescription().getMediaId())) {
                 return track;
             }
         }

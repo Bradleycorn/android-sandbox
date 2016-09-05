@@ -15,11 +15,12 @@ import android.util.Log;
 
 import net.bradball.android.sandbox.data.DatabaseHelper;
 import net.bradball.android.sandbox.data.DatabaseSchema;
+import net.bradball.android.sandbox.util.LogHelper;
 
 import java.util.ArrayList;
 
 public class RecordingsProvider extends ContentProvider {
-    private static final String TAG = "ContentProvider";
+    private static final String TAG = LogHelper.makeLogTag(RecordingsProvider.class);
     private DatabaseHelper mDatabaseHelper;
     private RecordingUriMatcher mRecordingUriMatcher;
     private Context mContext;
@@ -74,7 +75,7 @@ public class RecordingsProvider extends ContentProvider {
     @Nullable
     @Override
     public Uri insert(@NonNull Uri uri, ContentValues values) {
-        //Log.v(TAG, "insert(uri=" + uri + ", values=" + values.toString() + ")");
+        LogHelper.v(TAG, "insert(uri=", uri, ", values=", values.toString(), ")");
         final SQLiteDatabase db = mDatabaseHelper.getWritableDatabase();
         long rowId;
 
@@ -137,7 +138,6 @@ public class RecordingsProvider extends ContentProvider {
 
     @Override
     public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
-        Log.d(TAG, "====== DATABASE DELETE QUERY =====");
         final SQLiteDatabase db = mDatabaseHelper.getWritableDatabase();
         SelectionBuilder builder = createBaseQuery(uri);
 
@@ -169,6 +169,8 @@ public class RecordingsProvider extends ContentProvider {
         RecordingUrisEnum uriEnum = mRecordingUriMatcher.matchUri(uri);
         SelectionBuilder builder = new SelectionBuilder();
 
+        LogHelper.d(TAG, "creating Query for URI: ", uriEnum);
+
         switch(uriEnum) {
             case SHOWS:
                 builder.table(DatabaseSchema.ShowsTable.NAME);
@@ -192,7 +194,6 @@ public class RecordingsProvider extends ContentProvider {
 
             case SHOWS_BY_YEAR:
             case SHOWS_BY_DATE:
-                String whereField = (uriEnum == RecordingUrisEnum.SHOWS_BY_YEAR) ? RecordingsContract.Shows.YEAR : RecordingsContract.Shows.DATE;
 
                 builder.table(RecordingsContract.JOIN_SHOWS_RECORDINGS)
                         .mapToTable(RecordingsContract.Shows.DATE, DatabaseSchema.ShowsTable.NAME)
@@ -202,8 +203,7 @@ public class RecordingsProvider extends ContentProvider {
                         .mapToTable(RecordingsContract.Shows.SOUNDBOARD, DatabaseSchema.ShowsTable.NAME)
                         .mapToTable(RecordingsContract.Shows.TITLE, DatabaseSchema.ShowsTable.NAME)
                         .mapToTable(RecordingsContract.Shows._ID, DatabaseSchema.ShowsTable.NAME)
-                        .groupBy(DatabaseSchema.ShowsTable.NAME + "." + RecordingsContract.Shows._ID)
-                        .where(whereField + "=?", RecordingsContract.Shows.getShowDate(uri));
+                        .groupBy(DatabaseSchema.ShowsTable.NAME + "." + RecordingsContract.Shows._ID);
                 break;
 
 

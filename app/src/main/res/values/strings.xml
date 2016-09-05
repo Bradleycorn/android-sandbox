@@ -9,5 +9,21 @@
         <item quantity="other">%1$s shows</item>
     </plurals>
 
+    <string name="label_previous">Previous</string>
+    <string name="label_next">Next</string>
+    <string name="label_play">Play</string>
+    <string name="label_pause">Pause</string>
+    <string name="label_close">Close</string>
+
+
+    <string name="drawer_open">Open the main menu</string>
+    <string name="drawer_close">Close the main menu</string>
+    <string name="drawer_allmusic_title">All Music</string>
+    <string name="drawer_playlists_title">Playlists</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="browser_title">Browse Shows</string>
+
 </resources>
 

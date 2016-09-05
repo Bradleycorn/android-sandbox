@@ -30,22 +30,9 @@ public abstract class SingleFragmentActivity extends AppCompatActivity {
     protected abstract Fragment createFragment();
 
     private Toolbar mActionBarToolbar;
-    private MusicService mMusicService;
     private Intent mPlayIntent;
-    private boolean mMusicBound = false;
 
-    private ServiceConnection mServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            MusicService.MusicBinder binder = (MusicService.MusicBinder) service;
-            mMusicService = binder.getService();
-        }
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mMusicBound = false;
-        }
-    };
 
 
     @LayoutRes
@@ -57,11 +44,6 @@ public abstract class SingleFragmentActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (mPlayIntent==null) {
-            mPlayIntent = new Intent(this, MusicService.class);
-            bindService(mPlayIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
-            startService(mPlayIntent);
-        }
 
         setContentView(getLayoutResId());
 

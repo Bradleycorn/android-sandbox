@@ -4,6 +4,8 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Log;
 
+import net.bradball.android.sandbox.util.LogHelper;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +17,7 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ArchiveAPI {
-    private final static String TAG = "ArchiveAPI";
+    private final static String TAG = LogHelper.makeLogTag(ArchiveAPI.class);
 
     private final static Uri BASE_URI = Uri.parse("http://archive.org/");
     private final static String BASE_TRACK_URL = BASE_URI.toString() + "download/";
@@ -102,7 +104,7 @@ public class ArchiveAPI {
     }
 
     public byte[] getUrlBytes(String urlSpec) throws IOException {
-        Log.d(TAG, "Fetching URL: " + urlSpec);
+        LogHelper.d(TAG, "Fetching URL: ", urlSpec);
         URL url = new URL(urlSpec);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -142,7 +144,7 @@ public class ArchiveAPI {
         try {
             json = getUrlString(url);
         } catch (IOException ex) {
-            Log.e(TAG, "Failed to fetch shows from URL: " + url, ex);
+            LogHelper.e(TAG, "Failed to fetch shows from URL: " + url, ex);
         }
 
         return json;
@@ -154,7 +156,7 @@ public class ArchiveAPI {
         try {
             json = getUrlString(url);
         } catch (IOException ex) {
-            Log.e(TAG, "Failed to fetch shows from URL: " + url, ex);
+            LogHelper.e(TAG, "Failed to fetch shows from URL: " + url, ex);
         }
 
         return json;
